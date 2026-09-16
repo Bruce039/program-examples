@@ -15,6 +15,7 @@ describe('tokenAmountToBaseUnits', () => {
 
     it('accepts trailing zeroes that do not add precision', () => {
         assert.equal(tokenAmountToBaseUnits('1.230', 2), 123n);
+        assert.equal(tokenAmountToBaseUnits(' 1.230 ', 2), 123n);
         assert.equal(tokenAmountToBaseUnits('0.0100', 2), 1n);
     });
 

@@ -18,6 +18,26 @@ import { findExtraMetasAccountPda } from '@/generated/pdas';
 import { useCluster } from '../cluster/cluster-data-access';
 import { useTransactionErrorToast, useTransactionToast } from '../use-transaction-toast';
 
+function tokenAmountToBaseUnits(amount: string, decimals: number): bigint {
+    const normalized = amount.trim();
+    if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
+        throw new Error('Token amount must be a positive decimal number');
+    }
+
+    const [whole, fraction = ''] = normalized.split('.');
+    if (fraction.length > decimals) {
+        throw new Error(`Token supports at most ${decimals} decimal places`);
+    }
+
+    const scale = 10n ** BigInt(decimals);
+    const fractionBaseUnits = fraction ? BigInt(fraction.padEnd(decimals, '0')) : 0n;
+    const baseUnits = BigInt(whole) * scale + fractionBaseUnits;
+    if (baseUnits <= 0n) {
+        throw new Error('Token amount must be greater than zero');
+    }
+    return baseUnits;
+}
+
 // These read an arbitrary address, so they can't use connector's `useBalance`/`useTokens`/
 // `useTransactions`, which are scoped to the connected wallet and take no address.
 export function useGetBalance({ address }: { address: Address }) {
@@ -51,7 +71,7 @@ export function useSendTokens() {
     const transactionErrorToast = useTransactionErrorToast();
 
     return useMutation({
-        mutationFn: async (args: { mint: Address; destination: Address; amount: number }) => {
+        mutationFn: async (args: { mint: Address; destination: Address; amount: string }) => {
             if (!signer || !account || !client) throw new Error('No public key found');
             const { mint, destination, amount } = args;
 
@@ -61,6 +81,7 @@ export function useSendTokens() {
                 findAssociatedTokenPda({ owner: account, mint, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS }),
             ]);
 
+            const baseUnits = tokenAmountToBaseUnits(amount, mintAccount.data.decimals);
             const extensions = mintAccount.data.extensions.__option === 'Some' ? mintAccount.data.extensions.value : [];
             const transferHook = extensions.find(extension => extension.__kind === 'TransferHook');
             if (!transferHook) throw new Error('This mint has no transfer hook, so it is not an allow/block token');
@@ -99,7 +120,7 @@ export function useSendTokens() {
                     mint,
                     destination: ataDestination,
                     authority: signer,
-                    amount: BigInt(amount),
+                    amount: baseUnits,
                     decimals: mintAccount.data.decimals,
                 },
                 { tokenProgram: TOKEN_2022_PROGRAM_ADDRESS },

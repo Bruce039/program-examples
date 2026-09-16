@@ -169,6 +169,7 @@ export function AccountTokens({ address }: { address: Address }) {
                                                         if (amount && destination) {
                                                             try {
                                                                 sendTokens.mutateAsync({
+                                                                    source: pubkey,
                                                                     mint: toAddress(account.data.parsed.info.mint),
                                                                     destination: toAddress(destination),
                                                                     amount: parseFloat(amount),

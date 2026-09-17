@@ -14,29 +14,10 @@ import {
 import { getTransferSolInstruction } from '@solana-program/system';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSendInstruction } from '@/hooks/use-send-instruction';
+import { tokenAmountToBaseUnits } from '@/lib/token-amount';
 import { findExtraMetasAccountPda } from '@/generated/pdas';
 import { useCluster } from '../cluster/cluster-data-access';
 import { useTransactionErrorToast, useTransactionToast } from '../use-transaction-toast';
-
-function tokenAmountToBaseUnits(amount: string, decimals: number): bigint {
-    const normalized = amount.trim();
-    if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-        throw new Error('Token amount must be a positive decimal number');
-    }
-
-    const [whole, fraction = ''] = normalized.split('.');
-    if (fraction.length > decimals) {
-        throw new Error(`Token supports at most ${decimals} decimal places`);
-    }
-
-    const scale = 10n ** BigInt(decimals);
-    const fractionBaseUnits = fraction ? BigInt(fraction.padEnd(decimals, '0')) : 0n;
-    const baseUnits = BigInt(whole) * scale + fractionBaseUnits;
-    if (baseUnits <= 0n) {
-        throw new Error('Token amount must be greater than zero');
-    }
-    return baseUnits;
-}
 
 // These read an arbitrary address, so they can't use connector's `useBalance`/`useTokens`/
 // `useTransactions`, which are scoped to the connected wallet and take no address.
